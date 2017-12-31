@@ -1,1 +1,1 @@
-require("./src/calc.js")
+require("./src/calc.js").run()
