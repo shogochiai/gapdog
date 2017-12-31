@@ -1,7 +1,7 @@
 {
   "name": "gapdog",
   "author": "shogochiai <shogo1104@gmail.com>",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "repository": {
     "type": "git",
     "url": "https://github.com/shogochiai/gapdog"
@@ -9,7 +9,7 @@
   "description": "",
   "main": "index.js",
   "bin": {
-    "gapdog": "node index.js"
+    "gapdog": "bin/gapdog"
   },
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
