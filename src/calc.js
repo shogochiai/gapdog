@@ -55,7 +55,7 @@ function compare(res){
     const btcid = res.btcid
     const jpyprice = res.jpyprice
     const idrjpyrate = res.idrjpyrate
-    var idrprice = btcid.map((str,i)=> [coins[i], parseInt(JSON.parse(str).ticker.last)/idrjpyrate, Math.ceil(JSON.parse(str).ticker.vol_idr/1000/1000/idrjpyrate)+"M yen"] )
+    var idrprice = btcid.map((str,i)=> [coins[i], parseInt(JSON.parse(str).ticker.last)/idrjpyrate, Math.ceil(JSON.parse(str).ticker.vol_idr/idrjpyrate)] )
 
     function cal(i){
       return {

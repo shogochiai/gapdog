@@ -14,7 +14,7 @@ program
 const run = require("../src/calc").run
 
 function render(arr){
-  const str = moment().format("YYYYMMDDHHmmss")+"  "+arr.map(r=> r.name+" "+r.diff+" "+r.vol ).join("  ")
+  const str = moment().format("YYYYMMDDHHmmss")+"  "+arr.map(r=> r.name+" "+r.diff+" "+Math.ceil(r.vol/(1000*1000))/1000 ).join("  ")
   console.log(str)
 }
 
