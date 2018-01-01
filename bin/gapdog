@@ -3,6 +3,7 @@
 const program = require('commander')
 const path = require('path')
 const fs = require('fs')
+const moment = require("moment")
 
 program
   .version(JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'package.json'), 'utf8')).version)
@@ -12,15 +13,15 @@ program
 
 const run = require("../src/calc").run
 
-function render(obj){
-  const str = obj.timestamp+"  "+obj.rates.map(r=> r.name+" "+r.diff+" "+r.vol ).join("  ")
+function render(arr){
+  const str = moment().format("YYYYMMDDHHmmss")+"  "+arr.map(r=> r.name+" "+r.diff+" "+r.vol ).join("  ")
   console.log(str)
 }
 
-run().then(obj=>{ render(obj) })
+run().then(arr=>{ render(arr) })
 if (program.tail) {
   setInterval(_=>{
-    run().then(obj=>{ render(obj) })
+    run().then(arr=>{ render(arr) })
   },5000)
 }
 

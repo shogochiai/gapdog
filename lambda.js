@@ -12,17 +12,22 @@ const moment = require("moment")
 exports.handler = function(event, context) {
     createBucket()
     .then(calc)
-    .then(upload)
+    .then(bulkUpload)
     .then(res=>{
       context.done(null, res);
     })
 };
 
+function bulkUpload(arr){
+  const fns = arr.map(obj=> upload(obj) )
+  return Promise.all(fns)
+}
+
 function upload(obj){
   return new Promise(function(resolve, reject){
     var params = {
       Bucket: process.env.S3_BUCKET,
-      Key: 'idr-jpy-v1__'+moment().format("YYYYMMDDHHmmss"),
+      Key: 'idr-jpy-'+obj.name+'__'+moment().format("YYYYMMDDHHmmss"),
       Body: JSON.stringify(obj),
       ACL: 'public-read'
     }
@@ -48,4 +53,4 @@ function createBucket(){
   })
 }
 
-exports.handler({}, { done: function(err,data){}}) // manual tester
+// exports.handler({}, { done: function(err,data){}}) // manual tester
