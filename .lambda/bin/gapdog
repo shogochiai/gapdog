@@ -1,0 +1,23 @@
+#!/usr/bin/env node
+
+const program = require('commander')
+const path = require('path')
+const fs = require('fs')
+
+program
+  .version(JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'package.json'), 'utf8')).version)
+  .usage('[options]')
+  .option('--tail', 'log streaming mode in 60 sec interval')
+  .parse(process.argv)
+
+const run = require("../src/calc").run
+
+run()
+
+if (program.tail) {
+  setInterval(_=>{
+    run()
+  },5000)
+}
+
+
