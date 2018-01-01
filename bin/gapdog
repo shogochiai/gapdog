@@ -13,7 +13,6 @@ program
 const run = require("../src/calc").run
 
 function render(obj){
-  console.log(obj)
   const str = obj.timestamp+"  "+obj.rates.map(r=> r.name+" "+r.diff+" "+r.vol ).join("  ")
   console.log(str)
 }
