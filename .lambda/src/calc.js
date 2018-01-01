@@ -61,7 +61,8 @@ function compare(res){
       return {
         name: jpyprice[i][0],
         diff: "+"+norm(jpyprice[i][1], idrprice[i][1])+"%",
-        vol: idrprice[i][2]
+        vol: idrprice[i][2],
+        timestamp: new Date()
       }
     }
     function norm(jpp,idp){
@@ -69,12 +70,7 @@ function compare(res){
     }
     var arr = [cal(0),cal(1),cal(2),cal(3),cal(4),cal(5)]
 
-    var obj = {
-      timestamp: new Date(),
-      rates: arr
-    }
-    
-    resolve(obj)
+    resolve(arr)
   })
 }
 
