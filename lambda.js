@@ -22,7 +22,7 @@ function upload(result){
   return new Promise(function(resolve, reject){
     var params = {
       Bucket: process.env.S3_BUCKET,
-      Key: moment().format("YYYYMMDDHHmmss"),
+      Key: 'idr-jpy-v1__'+moment().format("YYYYMMDDHHmmss"),
       Body: result,
       ACL: 'public-read'
     }
