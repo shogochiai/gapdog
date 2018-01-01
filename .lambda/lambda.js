@@ -18,12 +18,12 @@ exports.handler = function(event, context) {
     })
 };
 
-function upload(result){
+function upload(obj){
   return new Promise(function(resolve, reject){
     var params = {
       Bucket: process.env.S3_BUCKET,
       Key: 'idr-jpy-v1__'+moment().format("YYYYMMDDHHmmss"),
-      Body: result,
+      Body: JSON.stringify(obj),
       ACL: 'public-read'
     }
     s3.upload(params, function(err, data) {
@@ -48,4 +48,4 @@ function createBucket(){
   })
 }
 
-// exports.handler({}, { done: function(err,data){}}) // manual tester
+exports.handler({}, { done: function(err,data){}}) // manual tester
