@@ -11,64 +11,111 @@ const coins = [
 ]
 
 function run(){
-  return scrape()
-    .then(cc)
-    .then(btcid)
-    .then(compare)
+  return Promise.all([
+    rate("JPY","IDR"),
+    rate("USD","JPY"),
+    cc(),
+    btcid(),
+    mama()
+  ])
+  .then(compare)
+  .catch(err=> console.error(err) )
 }
 
 
 
-function scrape(){
-  const rateUri = "http://www.xe.com/currencyconverter/convert/?Amount=1&From=JPY&To=IDR"
+function rate(from,to){
+  const rateUri = "http://www.xe.com/currencyconverter/convert/?Amount=1&From="+from+"&To="+to
   return rp({ uri: rateUri, transform: body=> cheerio.load(body) })
-}
-
-function cc($){
-  const selector = "#ucc-container > span.uccAmountWrap > span.uccResultAmount";
-  const idrjpyrate = parseInt($(selector).text())
-  return rp({ uri: "https://coincheck.com/api/rate/all" }).then(res=>{
-    return {
-      idrjpyrate: idrjpyrate,
-      cc: res
-    }
+  .then($=>{
+    const selector = "#ucc-container > span.uccAmountWrap > span.uccResultAmount";
+    const rate = parseFloat($(selector).text())
+    return rate
   })
 }
 
-function btcid(res){
-  const cc = res.cc
-  const idrjpyrate = res.idrjpyrate
-  var jpyprice = coins.map((c,i)=> [c, parseInt(JSON.parse(cc).jpy[c])] )
+function cc(){
+  return rp({ uri: "https://coincheck.com/api/rate/all" })
+}
 
+function mama(){
+  function fetch(uri, selectors){
+    return rp({ uri: uri, transform: body=> cheerio.load(body) }).then($=>{
+      var scrapedData = selectors.map(s=> parseFloat($(s).text()) )
+      const normalizedMamaTokens = [99.95,499.95,999.95,4999.95].map((base,i)=> base/scrapedData[i] )
+      const average = arr => arr.reduce( ( p, c ) => p + c, 0 )/ arr.length
+      const mamarate = average(normalizedMamaTokens)
+      return mamarate
+    })
+  }
+  return Promise.all([
+    fetch('https://www.coinmama.com/bitcoins' ,[
+      "#content > div > div:nth-child(5) > div > div:nth-child(1) > div > h3 > span",
+      "#content > div > div:nth-child(6) > div > div:nth-child(1) > div > h3 > span",
+      "#content > div > div:nth-child(7) > div > div:nth-child(1) > div > h3 > span",
+      "#content > div > div:nth-child(8) > div > div:nth-child(1) > div > h3 > span",
+    ]),
+    fetch('https://www.coinmama.com/ether' ,[
+      "#pricing-box-eth > div:nth-child(1) > div > div:nth-child(1) > div > h3 > span",
+      "#pricing-box-eth > div:nth-child(2) > div > div:nth-child(1) > div > h3 > span",
+      "#pricing-box-eth > div:nth-child(3) > div > div:nth-child(1) > div > h3 > span",
+      "#pricing-box-eth > div:nth-child(4) > div > div:nth-child(1) > div > h3 > span",
+    ])
+  ])
+}
+
+
+function btcid(){
   const fns = coins.map(c=> rp({ uri: "https://vip.bitcoin.co.id/api/"+c+"_idr/ticker" }) )
-  return Promise.all(fns).then(res=>{
-    return {
-      btcid: res,
-      jpyprice: jpyprice,
-      idrjpyrate: idrjpyrate
-    }
-  })
+  return Promise.all(fns)
 }
 
-function compare(res){
+function compare(allres){
   return new Promise((resolve, reject) => {
-    const btcid = res.btcid
-    const jpyprice = res.jpyprice
-    const idrjpyrate = res.idrjpyrate
-    var idrprice = btcid.map((str,i)=> [coins[i], parseInt(JSON.parse(str).ticker.last)/idrjpyrate, Math.ceil(JSON.parse(str).ticker.vol_idr/idrjpyrate)] )
+    const idrjpyrate = allres[0]
+    const jpyusdrate = allres[1]
+    const ccdata = allres[2]
+    const btciddata = allres[3]
+    const mamadata = allres[4]
+    const jpyprice = coins.map((c,i)=> [c, parseFloat(JSON.parse(ccdata).jpy[c])] )
+    const idrprice = btciddata.map((str,i)=> [coins[i], parseFloat(JSON.parse(str).ticker.last)/idrjpyrate, Math.ceil(JSON.parse(str).ticker.vol_idr/idrjpyrate)] )
+    const usdprice = [["btc", mamadata[0]*jpyusdrate, 0],["eth", mamadata[1]*jpyusdrate, 0]]
 
-    function cal(i){
-      return {
-        name: jpyprice[i][0],
-        diff: "+"+norm(jpyprice[i][1], idrprice[i][1])+"%",
-        vol: idrprice[i][2],
-        timestamp: new Date()
+    function cal(i, type){
+      
+      var obj = {}
+      
+      if(type=="usd"){
+        if(i==0){
+          obj = {
+            name: "mamabtc",
+            diff: norm(idrprice[0][1],usdprice[i][1]),
+            vol: usdprice[i][2],
+            timestamp: new Date()
+          }
+        } else {
+          obj = {
+            name: "mamaeth",
+            diff: norm(idrprice[2][1],usdprice[i][1]),
+            vol: usdprice[i][2],
+            timestamp: new Date()
+          }
+        }
+      } else { //jpy
+        obj = {
+          name: jpyprice[i][0],
+          diff: norm(idrprice[i][1],jpyprice[i][1]),
+          vol: idrprice[i][2],
+          timestamp: new Date()
+        }
       }
+      
+      return obj
     }
-    function norm(jpp,idp){
-      return Math.ceil((1-Math.ceil(jpp/idp*1000)/1000)*1000)/10
+    function norm(higher,lower){
+      return ((higher/lower-1)*100).toPrecision(4)
     }
-    var arr = [cal(0),cal(1),cal(2),cal(3),cal(4),cal(5)]
+    var arr = [cal(0,"jpy"),cal(1,"jpy"),cal(2,"jpy"),cal(3,"jpy"),cal(4,"jpy"),cal(5,"jpy"),,cal(0,"usd"),cal(1,"usd")]
 
     resolve(arr)
   })
