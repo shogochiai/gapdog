@@ -33,7 +33,7 @@ function upload(obj){
     }
     s3.upload(params, function(err, data) {
       if(err) reject(err)
-      else resolve(data)
+      else resolve({ input: obj, output: data })
     });
   })
 }
@@ -53,4 +53,4 @@ function createBucket(){
   })
 }
 
-// exports.handler({}, { done: function(err,data){}}) // manual tester
+//exports.handler({}, { done: function(err,data){ console.log(err,data) }}) // manual tester

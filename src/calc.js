@@ -88,9 +88,9 @@ function compare(allres){
     const finexethdata = JSON.parse(allres[5][1])
 
     const jpyprice = coins.map((c,i)=> [c, parseFloat(JSON.parse(ccdata).jpy[c])] )
-    const idrprice = btciddata.map((str,i)=> [coins[i], parseFloat(JSON.parse(str).ticker.last)/idrjpyrate, Math.ceil(JSON.parse(str).ticker.vol_idr/idrjpyrate)] )
+    const idrprice = btciddata.map((str,i)=> [coins[i], parseFloat(JSON.parse(str).ticker.last)/idrjpyrate, parseInt(parseFloat(JSON.parse(str).ticker.vol_idr)/idrjpyrate)] )
     const usdprice = [["btc", mamadata[0]*jpyusdrate, 0],["eth", mamadata[1]*jpyusdrate, 0]]
-    const usdprice2 = [["btc", finexbtcdata.last_price*jpyusdrate, finexbtcdata.volume*jpyusdrate],["eth", finexethdata.last_price*jpyusdrate, finexethdata.volume*jpyusdrate]]
+    const usdprice2 = [["btc", parseFloat(finexbtcdata.last_price)*jpyusdrate, parseInt(finexbtcdata.volume*jpyusdrate)],["eth", parseFloat(finexethdata.last_price)*jpyusdrate, parseInt(finexethdata.volume*jpyusdrate)]]
 
     function cal(i, type){
       
@@ -144,7 +144,7 @@ function compare(allres){
       return obj
     }
     function norm(higher,lower){
-      return ((higher/lower-1)*100).toPrecision(4)
+      return parseFloat( ((higher/lower-1)*100).toPrecision(4) )
     }
     var arr = [cal(0,"jpy"),cal(1,"jpy"),cal(2,"jpy"),cal(3,"jpy"),cal(4,"jpy"),cal(5,"jpy"),cal(0,"usd"),cal(1,"usd"),cal(2,"usd"),cal(3,"usd")]
 
