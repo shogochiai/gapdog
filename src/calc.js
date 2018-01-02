@@ -16,7 +16,8 @@ function run(){
     rate("USD","JPY"),
     cc(),
     btcid(),
-    mama()
+    mama(),
+    bitfinex()
   ])
   .then(compare)
   .catch(err=> console.error(err) )
@@ -63,6 +64,12 @@ function mama(){
     ])
   ])
 }
+function bitfinex(){
+  return Promise.all([
+    rp({uri: 'https://api.bitfinex.com/v1/pubticker/btcusd'}),
+    rp({uri: 'https://api.bitfinex.com/v1/pubticker/ethusd'})
+  ])
+}
 
 
 function btcid(){
@@ -77,29 +84,53 @@ function compare(allres){
     const ccdata = allres[2]
     const btciddata = allres[3]
     const mamadata = allres[4]
+    const finexbtcdata = JSON.parse(allres[5][0])
+    const finexethdata = JSON.parse(allres[5][1])
+
     const jpyprice = coins.map((c,i)=> [c, parseFloat(JSON.parse(ccdata).jpy[c])] )
     const idrprice = btciddata.map((str,i)=> [coins[i], parseFloat(JSON.parse(str).ticker.last)/idrjpyrate, Math.ceil(JSON.parse(str).ticker.vol_idr/idrjpyrate)] )
     const usdprice = [["btc", mamadata[0]*jpyusdrate, 0],["eth", mamadata[1]*jpyusdrate, 0]]
+    const usdprice2 = [["btc", finexbtcdata.last_price*jpyusdrate, finexbtcdata.volume*jpyusdrate],["eth", finexethdata.last_price*jpyusdrate, finexethdata.volume*jpyusdrate]]
 
     function cal(i, type){
       
       var obj = {}
       
       if(type=="usd"){
-        if(i==0){
-          obj = {
-            name: "mamabtc",
-            diff: norm(idrprice[0][1],usdprice[i][1]),
-            vol: usdprice[i][2],
-            timestamp: new Date()
-          }
-        } else {
-          obj = {
-            name: "mamaeth",
-            diff: norm(idrprice[2][1],usdprice[i][1]),
-            vol: usdprice[i][2],
-            timestamp: new Date()
-          }
+        switch(i){
+          case 0:
+            obj = {
+              name: "mamabtc",
+              diff: norm(idrprice[0][1],usdprice[0][1]),
+              vol: usdprice[0][2],
+              timestamp: new Date()
+            }
+            break
+          case 1:
+            obj = {
+              name: "mamaeth",
+              diff: norm(idrprice[2][1],usdprice[1][1]),
+              vol: usdprice[1][2],
+              timestamp: new Date()
+            }
+            break
+          case 2:
+            obj = {
+              name: "finexbtc",
+              diff: norm(idrprice[0][1],usdprice2[0][1]),
+              vol: usdprice2[0][2],
+              timestamp: new Date()
+            }
+            break
+          case 3:
+            obj = {
+              name: "finexeth",
+              diff: norm(idrprice[2][1],usdprice2[1][1]),
+              vol: usdprice2[1][2],
+              timestamp: new Date()
+            }
+            break
+          default:
         }
       } else { //jpy
         obj = {
@@ -115,7 +146,7 @@ function compare(allres){
     function norm(higher,lower){
       return ((higher/lower-1)*100).toPrecision(4)
     }
-    var arr = [cal(0,"jpy"),cal(1,"jpy"),cal(2,"jpy"),cal(3,"jpy"),cal(4,"jpy"),cal(5,"jpy"),,cal(0,"usd"),cal(1,"usd")]
+    var arr = [cal(0,"jpy"),cal(1,"jpy"),cal(2,"jpy"),cal(3,"jpy"),cal(4,"jpy"),cal(5,"jpy"),cal(0,"usd"),cal(1,"usd"),cal(2,"usd"),cal(3,"usd")]
 
     resolve(arr)
   })
