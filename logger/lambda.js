@@ -53,4 +53,4 @@ function createBucket(){
   })
 }
 
-//exports.handler({}, { done: function(err,data){ console.log(err,data) }}) // manual tester
+// exports.handler({}, { done: function(err,data){ console.log(err,data) }}) // manual tester

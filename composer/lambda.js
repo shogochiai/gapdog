@@ -7,10 +7,11 @@ const s3 = new AWS.S3({
   region: process.env.S3_REGION
 })
 const moment = require("moment")
+const _ = require("lodash")
 
 exports.handler = function(event, context) {
     createBucket()
-    .then(fetch)
+    .then(scan)
     .then(toCSV)
     .then(uploadCSV)
     .then(res=>{
@@ -18,7 +19,7 @@ exports.handler = function(event, context) {
     })
 };
 
-function fetch(){
+function scan(){
   return listObject()
   .then(list=>{
     return Promise.all(
@@ -26,13 +27,27 @@ function fetch(){
     )
   })
 }
-function listObject(){
+function listObject(token, prevKeys = []){
   return new Promise((resolve, reject) => {
-    s3.listObjects({
-      Bucket: process.env.S3_LOG_BUCKET
-    }, function(err, data) {
+    var opts = {
+      Bucket: process.env.S3_LOG_BUCKET,
+    }
+    if(token) opts.ContinuationToken = token
+    s3.listObjectsV2(opts, function(err, data) {
       if (err) reject(err)
-      else resolve(data.Contents.map(cont=> cont.Key ))
+      else {
+        prevKeys = prevKeys.concat(data.Contents.map(cont=> cont.Key ))
+        // console.log(prevKeys.length)
+        // console.log(data.NextContinuationToken)
+        if(data.IsTruncated){
+          return listObject(data.NextContinuationToken, prevKeys)
+          .then(data=>{
+            resolve(data)
+          })
+        } else {
+          resolve(prevKeys)
+        }
+      }
     })
   })
 }
@@ -45,7 +60,18 @@ function openObject(name){
       if (err) reject(err)
       else {
         var str = data.Body.toString('ascii')
-        resolve(JSON.parse(str))
+        var obj = JSON.parse(str)
+        
+        // S3 file can be obj/array
+        if(typeof obj == "array"){
+          obj = obj.map(a=>{
+            if (a.name.length < 4) a.name = "cc-"+a.name
+            return a
+          })
+        } else {
+          if (obj.name.length < 4) obj.name = "cc-"+obj.name
+        }
+        resolve(obj)
       }
     })
   })
@@ -53,6 +79,7 @@ function openObject(name){
 
 
 function toCSV(arrayOfObj){
+  arrayOfObj = _.flatten(arrayOfObj)
   return new Promise((resolve, reject) => {
     resolve(require('json2csv')({ data: arrayOfObj, fields: Object.keys(arrayOfObj[0]) }))
   })
@@ -89,4 +116,4 @@ function createBucket(){
   })
 }
 
-// exports.handler({}, { done: function(err,data){ console.log(err,data) }}) // manual tester
+exports.handler({}, { done: function(err,data){ console.log(err,data) }}) // manual tester

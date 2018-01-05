@@ -1,6 +1,5 @@
 const rp = require('request-promise').defaults({maxRedirects:100})
 const cheerio = require('cheerio')
-
 const coins = [
   "btc",
   "bch",
@@ -20,6 +19,7 @@ function run(){
     bitfinex(),
     bittrex(),
     rate("USDT","JPY"),
+    poloniex()
   ])
   .then(compare)
   .catch(err=> console.error(err) )
@@ -90,6 +90,10 @@ function bittrex(){
     rp({uri:"https://bittrex.com/api/v1.1/public/getmarketsummary?market=usdt-xrp"})
   ])
 }
+function poloniex(){
+  return rp({uri:'https://poloniex.com/public?command=returnTicker'})
+}
+
 
 function btcid(){
   const fns = coins.map(c=> rp({ uri: "https://vip.bitcoin.co.id/api/"+c+"_idr/ticker" }) )
@@ -107,72 +111,97 @@ function compare(allres){
     const finexethdata = JSON.parse(allres[5][1])
     const bittrexdata = allres[6].map(str=> JSON.parse(str).result[0] )
     const usdtjpyrate = allres[7]
+    const polodata = JSON.parse(allres[8])
 
-    const jpyprice = coins.map((c,i)=> ["cc-"+c, parseFloat(JSON.parse(ccdata).jpy[c])] )
-    const idrprice = btciddata.map((str,i)=> [coins[i], parseFloat(JSON.parse(str).ticker.last)/idrjpyrate, parseInt(parseFloat(JSON.parse(str).ticker.vol_idr)/idrjpyrate)] )
-    const usdprice = [["btc", mamadata[0]*usdjpyrate, 0],["eth", mamadata[1]*usdjpyrate, 0]]
-    const usdprice2 = [["btc", parseFloat(finexbtcdata.last_price)*usdjpyrate, parseInt(finexbtcdata.volume*usdjpyrate)],["eth", parseFloat(finexethdata.last_price)*usdjpyrate, parseInt(finexethdata.volume*usdjpyrate)]]
-    const bittrexprice = bittrexdata.map(obj=>{
-      const name = "trex-"+obj.MarketName.split("-")[1]
+    var jpyprice = {}
+    coins.map((c,i) => {
+      jpyprice[c] = { price:parseFloat(JSON.parse(ccdata).jpy[c]), vol:0 }
+    })
+    var idrprice = {}
+    btciddata.map((str,i) => {
+      var data = { price:parseFloat(JSON.parse(str).ticker.last)/idrjpyrate, vol:parseInt(parseFloat(JSON.parse(str).ticker.vol_idr)/idrjpyrate)}
+      idrprice[coins[i]] = data
+    })
+    const usdprice = {
+      btc: {
+        price: mamadata[0]*usdjpyrate,
+        vol: 0
+      },
+      eth: {
+        price: mamadata[1]*usdjpyrate,
+        vol: 0
+      }
+    }
+    const usdprice2 = {
+      btc: {
+        price: parseFloat(finexbtcdata.last_price)*usdjpyrate,
+        vol: parseInt(finexbtcdata.volume*usdjpyrate)
+      },
+      eth: {
+        price: parseFloat(finexethdata.last_price)*usdjpyrate,
+        vol: parseInt(finexethdata.volume*usdjpyrate)
+      }
+    }
+    var bittrexprice = {}
+    bittrexdata.map(obj=>{
+      const name = obj.MarketName.replace("USDT-","").toLowerCase()
       const jpybittrexprice = parseFloat(obj.Last*usdtjpyrate)
       const jpyvol = parseInt(obj.Volume*usdtjpyrate)
-      return [name, jpybittrexprice, jpyvol]
+      bittrexprice[name] = { price:jpybittrexprice, vol:jpyvol}
+    })
+    var poloprice = {}
+    Object.keys(polodata).filter(ticker=>{
+      return coins.includes(ticker.replace("USDT_","").toLowerCase())
+    }).map(ticker=>{
+      var obj = polodata[ticker]
+      const name = ticker.replace("USDT_","").toLowerCase()
+      const jpypoloprice = parseFloat(obj.last*usdtjpyrate)
+      const jpyvol = parseInt(obj.quoteVolume*usdtjpyrate)
+      poloprice[name] = { price:jpypoloprice, vol:jpyvol}
     })
 
-    function cal(i, type){
+
+    function cal(ticker, type){
       
       var obj = {}
       
-      if(type=="mama" || type=="finex"){
-        switch(i){
-          case 0:
-            obj = {
-              name: "mamabtc",
-              // diff: 0,
-              diff: norm(idrprice[0][1],usdprice[0][1]),
-              vol: usdprice[0][2],
-              timestamp: new Date()
-            }
-            break
-          case 1:
-            obj = {
-              name: "mamaeth",
-              // diff: 0,
-              diff: norm(idrprice[2][1],usdprice[1][1]),
-              vol: usdprice[1][2],
-              timestamp: new Date()
-            }
-            break
-          case 2:
-            obj = {
-              name: "finexbtc",
-              diff: norm(idrprice[0][1],usdprice2[0][1]),
-              vol: usdprice2[0][2],
-              timestamp: new Date()
-            }
-            break
-          case 3:
-            obj = {
-              name: "finexeth",
-              diff: norm(idrprice[2][1],usdprice2[1][1]),
-              vol: usdprice2[1][2],
-              timestamp: new Date()
-            }
-            break
-          default:
+      if(type=="mama"){
+        obj = {
+          name: "mama"+ticker,
+          // diff: 0,
+          diff: norm(idrprice[ticker].price,usdprice[ticker].price),
+          vol: usdprice[ticker].vol,
+          timestamp: new Date()
+        }
+      } else if (type=="finex") { //jpy
+        obj = {
+          name: type+ticker,
+          diff: norm(idrprice[ticker].price,usdprice2[ticker].price),
+          vol: usdprice2[ticker].vol,
+          timestamp: new Date()
         }
       } else if (type=="cc") { //jpy
         obj = {
-          name: jpyprice[i][0],
-          diff: norm(idrprice[i][1],jpyprice[i][1]),
-          vol: idrprice[i][2],
+          name: type+"-"+ticker,
+          diff: norm(idrprice[ticker].price,jpyprice[ticker].price),
+          vol: idrprice[ticker].vol,
           timestamp: new Date()
         }
       } else if (type=='bittrex') {
+        if(ticker=='bcc') {
+          idrprice.bcc = idrprice.bch
+        }
         obj = {
-          name: bittrexprice[i][0],
-          diff: norm(idrprice[i][1],bittrexprice[i][1]),
-          vol: bittrexprice[i][2],
+          name: "trex-"+ticker.toUpperCase(),
+          diff: norm(idrprice[ticker].price,bittrexprice[ticker].price),
+          vol: bittrexprice[ticker].vol,
+          timestamp: new Date()
+        }
+      } else if (type=='polo') {
+        obj = {
+          name: "polo-"+ticker,
+          diff: norm(idrprice[ticker].price,poloprice[ticker].price),
+          vol: poloprice[ticker].vol,
           timestamp: new Date()
         }
       }
@@ -183,22 +212,28 @@ function compare(allres){
       return parseFloat( ((higher/lower-1)*100).toPrecision(4) )
     }
     var arr = [
-      cal(0,"cc"),
-      cal(1,"cc"),
-      cal(2,"cc"),
-      cal(3,"cc"),
-      cal(4,"cc"),
-      cal(5,"cc"),
-      cal(0,"mama"),
-      cal(1,"mama"),
-      cal(2,"finex"),
-      cal(3,"finex"),
-      cal(0,"bittrex"),
-      cal(1,"bittrex"),
-      cal(2,"bittrex"),
-      cal(3,"bittrex"),
-      cal(4,"bittrex"),
-      cal(5,"bittrex")
+      cal("btc","cc"),
+      cal("bch","cc"),
+      cal("eth","cc"),
+      cal("etc","cc"),
+      cal("ltc","cc"),
+      cal("xrp","cc"),
+      cal("btc","mama"),
+      cal("eth","mama"),
+      cal("btc","finex"),
+      cal("eth","finex"),
+      cal("btc","bittrex"),
+      cal("bcc","bittrex"),
+      cal("eth","bittrex"),
+      cal("etc","bittrex"),
+      cal("ltc","bittrex"),
+      cal("xrp","bittrex"),
+      cal("btc","polo"),
+      cal("bch","polo"),
+      cal("eth","polo"),
+      cal("etc","polo"),
+      cal("ltc","polo"),
+      cal("xrp","polo")
     ]
 
     resolve(arr)
