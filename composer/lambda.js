@@ -10,37 +10,67 @@ const moment = require("moment")
 const _ = require("lodash")
 
 exports.handler = function(event, context) {
-    createBucket()
-    .then(scan)
-    .then(toCSV)
-    .then(uploadCSV)
-    .then(res=>{
-      context.done(null, res);
+  Promise.all(
+    [
+       moment().utc().format("YYYYMMDDHH"),
+       moment().utc().format("YYYYMMDD"),
+       moment().utc().format("YYYYMM")
+    ].map(span=>{
+      return createBucket()
+      .then(_=>{
+        return scan(span)
+      })
+      .then(data=>{
+        upload(data, span)
+      })
     })
+  )
+  .then(res=>{
+    context.done(null, res);
+  })
+  .catch(err=> context.done(err, err) )
 };
 
-function scan(){
-  return listObject()
+function scan(span){
+  const ex = ["trex","polo"]
+  const coins = [
+    "btc",
+    "bch",
+    "eth",
+    "etc",
+    "ltc",
+    "xrp"
+  ]
+
+  return Promise.all(
+    ex.map(name=>{
+      return coins.map(coin=>{
+        if(name=='trex') {
+          if (coin == "bch") coin = "bcc"
+          coin = coin.toUpperCase()
+        }
+        return listObject(null,[],name+"-"+coin+"__"+span)
+      })
+    })
+  )
   .then(list=>{
-    return Promise.all(
-      list.map(name=> openObject(name) )
-    )
+    return Promise.all( _.flatten(list) )
+    .then(names=> Promise.all( _.flatten(names).map(n=> openObject(n) ) ) )
   })
 }
-function listObject(token, prevKeys = []){
+function listObject(token, prevKeys = [], prefix){
   return new Promise((resolve, reject) => {
     var opts = {
-      Bucket: process.env.S3_LOG_BUCKET,
+      Bucket: process.env.S3_LOG_BUCKET
     }
     if(token) opts.ContinuationToken = token
+    if(prefix) opts.Prefix = prefix
     s3.listObjectsV2(opts, function(err, data) {
       if (err) reject(err)
       else {
         prevKeys = prevKeys.concat(data.Contents.map(cont=> cont.Key ))
-        // console.log(prevKeys.length)
-        // console.log(data.NextContinuationToken)
         if(data.IsTruncated){
-          return listObject(data.NextContinuationToken, prevKeys)
+          return listObject(data.NextContinuationToken, prevKeys, prefix)
           .then(data=>{
             resolve(data)
           })
@@ -80,24 +110,29 @@ function openObject(name){
 
 function toCSV(arrayOfObj){
   arrayOfObj = _.flatten(arrayOfObj)
-  return new Promise((resolve, reject) => {
-    resolve(require('json2csv')({ data: arrayOfObj, fields: Object.keys(arrayOfObj[0]) }))
-  })
+  return require('json2csv')({ data: arrayOfObj, fields: Object.keys(arrayOfObj[0]) })
 }
 
 
-function uploadCSV(csv){
+function upload(data, span){
   return new Promise(function(resolve, reject){
+    if(data.length == 0) reject("Data empty")
+
+    const csv = toCSV(data)
+    console.log(span, csv.length)
+    if(span) span = '__'+span
+    if(span.length == 10) span = ""
     var params = {
       Bucket: process.env.S3_BUCKET,
-      Key: 'redash-view',
+      Key: 'redash-view'+span,
       Body: csv,
       ACL: 'public-read'
     }
+
     s3.upload(params, function(err, data) {
       if(err) reject(err)
       else resolve({ input: csv, output: data })
-    });
+    })
   })
 }
 
@@ -116,4 +151,4 @@ function createBucket(){
   })
 }
 
-exports.handler({}, { done: function(err,data){ console.log(err,data) }}) // manual tester
+// exports.handler({}, { done: function(err,data){ console.log(err,data) }}) // manual tester

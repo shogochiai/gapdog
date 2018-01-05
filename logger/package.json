@@ -22,6 +22,7 @@
     "cheerio": "^1.0.0-rc.2",
     "commander": "^2.12.2",
     "dotenv": "^4.0.0",
+    "lodash": "^4.17.4",
     "moment": "^2.20.1",
     "node-lambda": "^0.11.5",
     "request": "^2.83.0",
