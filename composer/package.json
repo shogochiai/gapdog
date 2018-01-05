@@ -8,9 +8,6 @@
   },
   "description": "",
   "main": "index.js",
-  "bin": {
-    "gapdog": "bin/gapdog"
-  },
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "deploy": "node-lambda deploy -r us-west-2 -f .env",
@@ -22,6 +19,7 @@
     "cheerio": "^1.0.0-rc.2",
     "commander": "^2.12.2",
     "dotenv": "^4.0.0",
+    "json2csv": "^3.11.5",
     "moment": "^2.20.1",
     "node-lambda": "^0.11.5",
     "request": "^2.83.0",
