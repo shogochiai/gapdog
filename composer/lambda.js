@@ -10,37 +10,26 @@ const moment = require("moment")
 const _ = require("lodash")
 
 exports.handler = function(event, context) {
-  Promise.all(
-    [
-       moment().utc().format("YYYYMMDDHH"),
-       moment().utc().format("YYYYMMDD"),
-       moment().utc().format("YYYYMM")
-    ].map(span=>{
-      return createBucket()
-      .then(_=>{
-        return scan(span)
-      })
-      .then(data=>{
-        upload(data, span)
-      })
-    })
-  )
+  var spans = Array(25).join(".").split("").map((i,j) => moment().utc().subtract(1,'days').add(j+2,"hours").format("YYYYMMDDHH") )
+  compose(spans)
   .then(res=>{
     context.done(null, res);
   })
   .catch(err=> context.done(err, err) )
 };
 
+
+function compose(spans){
+  return createBucket()
+  .then(_=>{
+    return Promise.all( spans.map(span=> scan(span) ) )
+  })
+  .then(upload)
+}
+
 function scan(span){
-  const ex = ["trex","polo"]
-  const coins = [
-    "btc",
-    "bch",
-    "eth",
-    "etc",
-    "ltc",
-    "xrp"
-  ]
+  const ex = ["trex","polo","cc"]
+  const coins = ["btc","bch","eth","etc","ltc","xrp"]
 
   return Promise.all(
     ex.map(name=>{
@@ -114,21 +103,18 @@ function toCSV(arrayOfObj){
 }
 
 
-function upload(data, span){
+function upload(data){
   return new Promise(function(resolve, reject){
     if(data.length == 0) reject("Data empty")
-
+  
     const csv = toCSV(data)
-    console.log(span, csv.length)
-    if(span) span = '__'+span
-    if(span.length == 10) span = ""
     var params = {
       Bucket: process.env.S3_BUCKET,
-      Key: 'redash-view'+span,
+      Key: 'redash-view',
       Body: csv,
       ACL: 'public-read'
     }
-
+  
     s3.upload(params, function(err, data) {
       if(err) reject(err)
       else resolve({ input: csv, output: data })
