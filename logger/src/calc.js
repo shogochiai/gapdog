@@ -19,7 +19,10 @@ function run(){
     bitfinex(),
     bittrex(),
     rate("USDT","JPY"),
-    poloniex()
+    poloniex(),
+    huobi(),
+    hitbtc(),
+    binance()
   ])
   .then(compare)
   .catch(err=> console.error(err) )
@@ -93,11 +96,18 @@ function bittrex(){
 function poloniex(){
   return rp({uri:'https://poloniex.com/public?command=returnTicker'})
 }
-
-
 function btcid(){
   const fns = coins.map(c=> rp({ uri: "https://vip.bitcoin.co.id/api/"+c+"_idr/ticker" }) )
   return Promise.all(fns)
+}
+function huobi(){
+  return rp({uri:"https://api.huobi.pro/market/detail/merged?symbol=zilbtc"})
+}
+function hitbtc(){
+  return rp({uri:"https://api.hitbtc.com/api/2/public/ticker/XTZUSD"})
+}
+function binance(){
+  return rp({uri:"https://api.binance.com/api/v1/ticker/price?symbol=BNTBTC"})
 }
 
 function compare(allres){
@@ -112,6 +122,14 @@ function compare(allres){
     const bittrexdata = allres[6].map(str=> JSON.parse(str).result[0] )
     const usdtjpyrate = allres[7]
     const polodata = JSON.parse(allres[8])
+    const huobidata = JSON.parse(allres[9])
+    const hitbtcdata = JSON.parse(allres[10])
+    const binancedata = JSON.parse(allres[11])
+    
+    const zilbtcprice = (huobidata.tick.ask[0] + huobidata.tick.bid[0]) / 2
+    const ziljpyprice = zilbtcprice * parseInt(JSON.parse(ccdata).jpy.btc)
+    const xtzjpyprice = parseFloat(hitbtcdata.last) * usdtjpyrate
+    const bntjpyprice = binancedata.price * parseInt(JSON.parse(ccdata).jpy.btc)
 
     var jpyprice = {}
     coins.map((c,i) => {
@@ -204,6 +222,27 @@ function compare(allres){
           vol: poloprice[ticker].vol,
           timestamp: new Date()
         }
+      } else if (type=='huobi') {
+        obj = {
+          name: "huobi-"+ticker,
+          diff: ziljpyprice,
+          vol: 0,
+          timestamp: new Date()
+        }
+      } else if (type=='hitbtc') {
+        obj = {
+          name: "hitbtc-"+ticker,
+          diff: xtzjpyprice,
+          vol: 0,
+          timestamp: new Date()
+        }
+      } else if (type=='binance') {
+        obj = {
+          name: "binance-"+ticker,
+          diff: bntjpyprice,
+          vol: 0,
+          timestamp: new Date()
+        }
       }
       
       return obj
@@ -233,7 +272,10 @@ function compare(allres){
       cal("eth","polo"),
       cal("etc","polo"),
       cal("ltc","polo"),
-      cal("xrp","polo")
+      cal("xrp","polo"),
+      cal("zil","huobi"),
+      cal("xtz","hitbtc"),
+      cal("bnt","binance")
     ]
 
     resolve(arr)

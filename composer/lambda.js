@@ -30,17 +30,25 @@ function compose(spans){
 function scan(span){
   const ex = ["trex","polo","cc"]
   const coins = ["btc","bch","eth","etc","ltc","xrp"]
-
-  return Promise.all(
-    ex.map(name=>{
-      return coins.map(coin=>{
-        if(name=='trex') {
-          if (coin == "bch") coin = "bcc"
-          coin = coin.toUpperCase()
-        }
-        return listObject(null,[],name+"-"+coin+"__"+span)
-      })
+  const majortickers = ex.map(name=>{
+    return coins.map(coin=>{
+      if(name=='trex') {
+        if (coin == "bch") coin = "bcc"
+        coin = coin.toUpperCase()
+      }
+      return listObject(null,[],name+"-"+coin+"__"+span)
     })
+  })
+  const adhoctickers = [
+    listObject(null,[],"huobi-zil__"+span),
+    listObject(null,[],"hitbtc-xtz__"+span),
+    listObject(null,[],"binance-bnt__"+span)
+  ]
+  return Promise.all(
+    _.flatten([
+      majortickers,
+      adhoctickers
+    ])
   )
   .then(list=>{
     return Promise.all( _.flatten(list) )
