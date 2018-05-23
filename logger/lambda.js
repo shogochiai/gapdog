@@ -12,6 +12,12 @@ const moment = require("moment")
 exports.handler = function(event, context) {
     createBucket()
     .then(calc)
+    .then(arr=>{
+      return [
+        arr[22],//huobi
+        arr[23]//hitbtc
+      ]
+    })
     .then(bulkUpload)
     .then(res=>{
       context.done(null, res);

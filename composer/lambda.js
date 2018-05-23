@@ -8,9 +8,14 @@ const s3 = new AWS.S3({
 })
 const moment = require("moment")
 const _ = require("lodash")
+const HOURS = 24
+const MONTH = 31
 
 exports.handler = function(event, context) {
-  var spans = Array(25).join(".").split("").map((i,j) => moment().utc().subtract(1,'days').add(j+2,"hours").format("YYYYMMDDHH") )
+  // Get 3month data but compase by daily basis
+  // This restriction is come from S3 file naming (hour basis naming)
+  const range = MONTH*6
+  var spans = Array(range).join(".").split("").map((i,j) => moment().utc().subtract(range,'days').add(j,"days").format("YYYYMMDDHH") )
   compose(spans)
   .then(res=>{
     context.done(null, res);
@@ -28,21 +33,22 @@ function compose(spans){
 }
 
 function scan(span){
-  const ex = ["trex","polo","cc"]
-  const coins = ["btc","bch","eth","etc","ltc","xrp"]
-  const majortickers = ex.map(name=>{
-    return coins.map(coin=>{
-      if(name=='trex') {
-        if (coin == "bch") coin = "bcc"
-        coin = coin.toUpperCase()
-      }
-      return listObject(null,[],name+"-"+coin+"__"+span)
-    })
-  })
+  // const ex = ["trex","polo","cc"]
+  // const coins = ["btc","bch","eth","etc","ltc","xrp"]
+  // const majortickers = ex.map(name=>{
+  //   return coins.map(coin=>{
+  //     if(name=='trex') {
+  //       if (coin == "bch") coin = "bcc"
+  //       coin = coin.toUpperCase()
+  //     }
+  //     return listObject(null,[],name+"-"+coin+"__"+span)
+  //   })
+  // })
+  const majortickers = []
   const adhoctickers = [
     listObject(null,[],"huobi-zil__"+span),
-    listObject(null,[],"hitbtc-xtz__"+span),
-    listObject(null,[],"binance-bnt__"+span)
+    listObject(null,[],"hitbtc-xtz__"+span)//,
+    // listObject(null,[],"binance-bnt__"+span)
   ]
   return Promise.all(
     _.flatten([
